@@ -115,6 +115,7 @@ class PreTransportInstance(action.Action):
         self.commit_diff_file(host, diff_file)
 
     def transport_image(self, dst_cloud, info, instance_id):
+        #TODO: according to SAIC-241, change path_dst definition
         path_dst = "%s/%s" % (dst_cloud.cloud_config.cloud.temp, "temp%s_base" % instance_id)
         info[INSTANCES][instance_id][DIFF][PATH_DST] = path_dst
         info[INSTANCES][instance_id][DIFF][HOST_DST] = dst_cloud.getIpSsh()
@@ -143,6 +144,7 @@ class PreTransportInstance(action.Action):
             resource_root_name=utl.DIFF_BODY)
         image_id = info[INSTANCES][instance_id][utl.INSTANCE_BODY]['image_id']
 
+        #TODO: according to SAIC-241, change base_file, diff_file definition
         base_file = "%s/%s" % (dst_cloud.cloud_config.cloud.temp, "temp%s_base" % instance_id)
         diff_file = "%s/%s" % (dst_cloud.cloud_config.cloud.temp, "temp%s" % instance_id)
 

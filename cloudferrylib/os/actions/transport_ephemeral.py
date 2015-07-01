@@ -133,6 +133,7 @@ class TransportEphemeral(action.Action):
             resource_root_name=utl.EPHEMERAL_BODY)
 
         instances = info[utl.INSTANCES_TYPE]
+        #TODO: according to SAIC-241, change temp_src definition
         temp_src = src_cloud.cloud_config.cloud.temp
         host_dst = dst_cloud.getIpSsh()
         qemu_img_dst = dst_cloud.qemu_img

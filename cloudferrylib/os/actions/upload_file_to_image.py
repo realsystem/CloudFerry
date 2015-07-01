@@ -1,6 +1,7 @@
 
 from cloudferrylib.base.action import action
 from fabric.api import run, settings
+from cloudferrylib.utils import cmd_cfg
 from cloudferrylib.utils import utils as utl
 
 CLOUD = 'cloud'
@@ -33,7 +34,7 @@ class UploadFileToImage(action.Action):
         for instance_id, instance in info[utl.INSTANCES_TYPE].iteritems():
             # init
             image_id = info[INSTANCES][instance_id][utl.INSTANCE_BODY]['image_id']
-            base_file = "%s/%s" % (self.cloud.cloud_config.cloud.temp, "temp%s_base" % instance_id)
+            base_file = "%s/%s" % (cfg.image_temp, "temp%s_base" % instance_id)
             image_name = "%s-image" % instance_id
             images = img_res.read_info(image_id=image_id)[utl.IMAGES_TYPE]
             image_format = images[image_id][utl.IMAGE_BODY]['disk_format']
@@ -54,6 +55,11 @@ class UploadFileToImage(action.Action):
                            base_file))
             image_id = out.split("|")[2].replace(' ', '')
             info[INSTANCES][instance_id][INSTANCE_BODY]['image_id'] = image_id
+            if len(cfg.image_temp) > 1:
+                image_dir_cmd = cmd_cfg.rmdir_cmd(cfg.image_temp)
+                self.cloud.ssh_util.execute(image_dir_cmd)
+            else:
+                raise RuntimeError('Wrong dirname %s, stopping' % cfg.image_temp)
         return {
             'info': info
         }
