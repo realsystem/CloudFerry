@@ -28,7 +28,8 @@ class RemoteExecutionError(RuntimeError):
 
 
 class RemoteRunner(object):
-    def __init__(self, host, user, password=None, sudo=False, key=None, ignore_errors=False):
+    def __init__(self, host, user, password=None, sudo=False, key=None,
+                 ignore_errors=False):
         self.host = host
         if key is None:
             key = cfglib.CONF.migrate.key_filename
@@ -52,10 +53,13 @@ class RemoteRunner(object):
             with forward_agent(self.key):
                 LOG.debug("running '%s' on '%s' host as user '%s'",
                           cmd, self.host, self.user)
-                if self.sudo:
-                    return sudo(cmd)
-                else:
-                    return run(cmd)
+                try:
+                    if self.sudo:
+                        return sudo(cmd)
+                    else:
+                        return run(cmd)
+                except RemoteExecutionError:
+                    raise RuntimeError('Wrong credentials for %s' % self.host)
 
     def run_ignoring_errors(self, cmd):
         ignore_errors_original = self.ignore_errors
