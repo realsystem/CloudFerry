@@ -20,7 +20,9 @@ src_opts = [
                help='password for access to API'),
     cfg.StrOpt('tenant', default='-',
                help='tenant for access to API'),
-    cfg.StrOpt('service_tenant', default='services',
+    cfg.StrOpt('admin_tenant', default='admin',
+               help='Tenant name for admin'),
+    cfg.StrOpt('service_tenant', default='service',
                help='Tenant name for services'),
     cfg.StrOpt('ssh_user', default='root',
                help='user to connect via ssh'),
@@ -49,7 +51,9 @@ dst_opts = [
                help='password for access to API'),
     cfg.StrOpt('tenant', default='-',
                help='tenant for access to API'),
-    cfg.StrOpt('service_tenant', default='services',
+    cfg.StrOpt('admin_tenant', default='admin',
+               help='Tenant name for admin'),
+    cfg.StrOpt('service_tenant', default='service',
                help='Tenant name for services'),
     cfg.StrOpt('ssh_user', default='root',
                help='user to connect via ssh'),
@@ -136,7 +140,10 @@ migrate_opts = [
                      'OpenStack does not support user quotas (e.g. Grizzly)'),
     cfg.StrOpt('incloud_live_migration', default='nova',
                help='Live migration type used for in-cloud live migration. '
-                    'Possible values: "nova", "cobalt".')
+                    'Possible values: "nova", "cobalt".'),
+    cfg.StrOpt('filter_tenant_id', default='-',
+               help='Filtering tenant '
+                    'Possible values: "c15ec6bbd2b44d1a968354cc1fa2ac97".')
 ]
 
 mail = cfg.OptGroup(name='mail',

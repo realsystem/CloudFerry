@@ -48,6 +48,7 @@ class GlanceImage(image.Image):
         self.host = config.cloud.host
         self.cloud = cloud
         self.identity_client = cloud.resources['identity']
+        self.filter_tenant_id = ''
         # get mysql settings
         self.mysql_connector = self.get_db_connection()
         self.glance_client = self.proxy(self.get_client(), config)
@@ -90,10 +91,29 @@ class GlanceImage(image.Image):
             token=self.identity_client.get_auth_token_from_user())
 
     def get_image_list(self):
+        # let's get all public images and all tenant's images
+        get_img_list = self.glance_client.images.list
+        if self.cloud.position == 'src' and self.filter_tenant_id:
+            image_list = []
+            # getting images if tenant is owner
+            filters = {'is_public': None, 'owner': self.filter_tenant_id}
+            for img in get_img_list(filters=filters):
+                image_list.append(img)
+            filters = {'is_public': None}
+            for img in get_img_list(filters=filters):
+                # getting images if tenant is member
+                for entry in self.glance_client.image_members.list(image=img):
+                    if entry.member_id == self.filter_tenant_id:
+                        image_list.append(img)
+                # getting public images
+                for k, v in img.to_dict().items():
+                    if k == 'is_public' and v:
+                        image_list.append(img)
+            return list(set(image_list))
         # by some reason - guys from community decided to create that strange
         # option to get images of all tenants
         filters = {"is_public": None}
-        return self.glance_client.images.list(filters=filters)
+        return get_img_list(filters=filters)
 
     def create_image(self, **kwargs):
         return self.glance_client.images.create(**kwargs)
@@ -218,6 +238,9 @@ class GlanceImage(image.Image):
         """
 
         info = {'images': {}}
+
+        if kwargs.get('tenant_id'):
+            self.filter_tenant_id = kwargs['tenant_id'][0]
 
         def image_valid(img, date):
             """ Check if image was updated recently """
@@ -365,7 +388,7 @@ class GlanceImage(image.Image):
             else:
                 empty_image_list[image_id_src] = gl_image
         if migrate_images_list:
-            im_name_list = [(im.name, meta) for (im, meta) in
+            im_name_list = [(im.name, tmp_meta) for (im, tmp_meta) in
                             migrate_images_list]
             new_info = self.read_info(images_list_meta=im_name_list)
         new_info['images'].update(empty_image_list)
@@ -375,7 +398,8 @@ class GlanceImage(image.Image):
         dst_img_checksums = {x.checksum: x.id for x in self.get_image_list()}
         for image_id_src, gl_image in info['images'].iteritems():
             cur_image = gl_image["image"]
-            image_ids_map[cur_image["id"]] = dst_img_checksums[cur_image["checksum"]]
+            image_ids_map[cur_image["id"]] = \
+                dst_img_checksums[cur_image["checksum"]]
         LOG.debug("deploying image members")
         for image_id, data in info.get("members", {}).items():
             for tenant_name, can_share in data.items():

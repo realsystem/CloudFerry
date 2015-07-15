@@ -72,6 +72,7 @@ class NovaCompute(compute.Compute):
         super(NovaCompute, self).__init__()
         self.config = config
         self.cloud = cloud
+        self.filter_tenant_id = ''
         self.identity = cloud.resources['identity']
         self.mysql_connector = self.get_db_connection()
         self.nova_client = self.proxy(self.get_client(), config)
@@ -98,10 +99,20 @@ class NovaCompute(compute.Compute):
                                                   my_settings.database_name)
 
     def _read_info_quotas(self):
+        admin_tenant_id = self.identity.get_tenant_id_by_name(
+            self.config.cloud.admin_tenant)
         service_tenant_id = self.identity.get_tenant_id_by_name(
             self.config.cloud.service_tenant)
-        tenant_ids = [tenant.id for tenant in self.identity.get_tenants_list()
-                      if tenant.id != service_tenant_id]
+        if self.filter_tenant_id:
+            tmp_list = \
+                [admin_tenant_id, service_tenant_id, self.filter_tenant_id]
+            tenant_ids = \
+                [tenant.id for tenant in self.identity.get_tenants_list()
+                    if tenant.id in tmp_list]
+        else:
+            tenant_ids = \
+                [tenant.id for tenant in self.identity.get_tenants_list()
+                    if tenant.id != service_tenant_id]
         user_ids = [user.id for user in self.identity.get_users_list()]
         project_quotas = list()
         user_quotas = list()
@@ -154,6 +165,9 @@ class NovaCompute(compute.Compute):
         :param search_opts: Search options to filter out servers (optional).
         """
 
+        if kwargs.get('tenant_id'):
+            self.filter_tenant_id = kwargs['tenant_id'][0]
+
         if target == 'resources':
             return self._read_info_resources(**kwargs)
 
@@ -161,6 +175,7 @@ class NovaCompute(compute.Compute):
             raise ValueError('Only "resources" or "instances" values allowed')
 
         search_opts = kwargs.get('search_opts')
+
         search_opts = search_opts if search_opts else {}
         search_opts.update(all_tenants=True)
 
@@ -168,9 +183,11 @@ class NovaCompute(compute.Compute):
 
         for instance in self.get_instances_list(search_opts=search_opts):
             if instance.status in ALLOWED_VM_STATUSES:
-                info['instances'][instance.id] = self.convert(instance,
-                                                              self.config,
-                                                              self.cloud)
+                if not self.filter_tenant_id or \
+                        (self.filter_tenant_id == instance.tenant_id):
+                    info['instances'][instance.id] = self.convert(instance,
+                                                                  self.config,
+                                                                  self.cloud)
 
         return info
 
@@ -446,7 +463,6 @@ class NovaCompute(compute.Compute):
 
         for _instance in info_compute['instances'].itervalues():
             instance = _instance['instance']
-            meta = _instance['meta']
             self.nova_client = nova_tenants_clients[instance['tenant_name']]
             create_params = {'name': instance['name'],
                              'flavor': instance['flavor_id'],

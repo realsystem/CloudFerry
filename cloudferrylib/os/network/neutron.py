@@ -34,6 +34,7 @@ class NeutronNetwork(network.Network):
     def __init__(self, config, cloud):
         super(NeutronNetwork, self).__init__(config)
         self.cloud = cloud
+        self.filter_tenant_id = ''
         self.identity_client = cloud.resources['identity']
         self.neutron_client = self.proxy(self.get_client(), config)
         self.ext_net_map = \
@@ -52,10 +53,26 @@ class NeutronNetwork(network.Network):
         :rtype: Dictionary with all necessary neutron info
         """
 
-        tenant_id = ''
+        if kwargs.get('tenant_id'):
+            tenant_id = self.filter_tenant_id = kwargs['tenant_id'][0]
+        else:
+            tenant_id = ''
 
-        info = {'networks': self.get_networks(tenant_id),
-                'subnets': self.get_subnets(tenant_id),
+        nets = self.get_networks(tenant_id)
+        subnets = self.get_subnets(tenant_id)
+
+        if self.filter_tenant_id:
+            admin_tenant_id = self.identity_client.get_tenant_id_by_name(
+                self.config.cloud.admin_tenant)
+            admin_nets = self.get_networks(admin_tenant_id)
+            for net in admin_nets:
+                nets.append(net)
+            admin_subnets = self.get_subnets(admin_tenant_id)
+            for subnet in admin_subnets:
+                subnets.append(subnet)
+
+        info = {'networks': nets,
+                'subnets': subnets,
                 'routers': self.get_routers(tenant_id),
                 'floating_ips': self.get_floatingips(tenant_id),
                 'security_groups': self.get_sec_gr_and_rules(tenant_id),

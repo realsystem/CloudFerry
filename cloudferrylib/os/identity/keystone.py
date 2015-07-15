@@ -80,6 +80,7 @@ class KeystoneIdentity(identity.Identity):
         self.keystone_client = self.proxy(self.get_client(), config)
         self.mysql_connector = cloud.mysql_connector
         self.cloud = cloud
+        self.filter_tenant_id = ''
         self.postman = None
         if self.config.mail.server != "-":
             self.postman = Postman(self.config['mail']['username'],
@@ -130,13 +131,22 @@ class KeystoneIdentity(identity.Identity):
         service_tenant_id = \
             self.get_tenant_id_by_name(self.config.cloud.service_tenant)
 
+        admin_tenant_id = \
+            self.get_tenant_id_by_name(self.config.cloud.admin_tenant)
+
+        if kwargs.get('tenant_id'):
+            self.filter_tenant_id = kwargs['tenant_id'][0]
+
+        tmp_list = [admin_tenant_id, service_tenant_id, self.filter_tenant_id]
         for tenant in self.get_tenants_list():
-            if tenant.id != service_tenant_id:
+            if (self.filter_tenant_id and tenant.id in tmp_list) or \
+                    not self.filter_tenant_id:
                 tnt = self.convert(tenant, self.config)
                 info['tenants'].append(tnt)
 
         for user in self.get_users_list():
-            if user.tenantId != service_tenant_id:
+            if (self.filter_tenant_id and user.tenantId in tmp_list) or \
+                    not self.filter_tenant_id:
                 usr = self.convert(user, self.config)
                 info['users'].append(usr)
 
